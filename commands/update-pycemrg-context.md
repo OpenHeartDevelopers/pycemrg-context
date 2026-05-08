@@ -1,24 +1,32 @@
 Rebuild PLACEMENT_GUIDE.md and PYCEMRG_SUITE_INDEX.md from updated source files.
 
-## Step 0: Refresh source file for the current library
+## Step 0: Load library paths
 
-Run packer on the current directory:
-```bash
-packer -r . --no-interactive --include-extensions .md -o /tmp/library_context.txt
-```
+Read @../LIBRARY_PATHS.md to resolve absolute paths for each library.
+If the file does not exist, tell the user to run `./install.sh` from the
+pycemrg-context repo first and stop.
 
-Then read /tmp/library_context.txt to understand what has changed.
+## Step 1: Identify which library changed
 
-## Step 1: Read the existing derived files
+Ask the user which library was updated, or infer from context. Resolve the
+corresponding source file:
 
-Read the current PLACEMENT_GUIDE.md and PYCEMRG_SUITE_INDEX.md from the context repo.
-Ask the user for the path if not known.
+| Library                | Source file                          |
+| ---------------------- | ------------------------------------ |
+| pycemrg-core           | `source/pycemrg-core.md`             |
+| pycemrg-image-analysis | `source/pycemrg-image-analysis.md`   |
+| pycemrg-model-creation | `source/pycemrg-model-creation.md`   |
 
-## Step 2: Read the current derived files
+If the source file does not exist or is stale, tell the user to run
+`/refresh-source [library]` first and stop.
+
+Read the identified source file(s).
+
+## Step 2: Read the existing derived files
 
 Read the current versions of both files to understand what has changed:
-- @PLACEMENT_GUIDE.md
-- @PYCEMRG_SUITE_INDEX.md
+- @../PLACEMENT_GUIDE.md
+- @../PYCEMRG_SUITE_INDEX.md
 
 ## Step 3: Identify what has changed
 

@@ -4,40 +4,45 @@ Suite-level context for AI agents (like Claude Code) when working across the pyc
 
 ## Contents
 
-| File                                 | Purpose                                             | Updated by                |
-| ------------------------------------ | --------------------------------------------------- | ------------------------- |
-| `PLACEMENT_GUIDE.md`                 | Where does new functionality belong?                | `/update-pycemrg-context` |
-| `PYCEMRG_SUITE_INDEX.md`                     | What already exists and how to call it?             | `/update-pycemrg-context` |
-| `commands/pycemrgise.md`             | `/pycemrgise` slash command                         | Hand-maintained           |
-| `commands/update-pycemrg-context.md` | `/update-pycemrg-context` slash command             | Hand-maintained           |
-| `source/*.txt`                       | Concatenated docs from each library (packer output) | Packer tool               |
+| File                                 | Purpose                                                   | Updated by                |
+| ------------------------------------ | --------------------------------------------------------- | ------------------------- |
+| `PLACEMENT_GUIDE.md`                 | Where does new functionality belong?                      | `/update-pycemrg-context` |
+| `PYCEMRG_SUITE_INDEX.md`             | What already exists and how to call it?                   | `/update-pycemrg-context` |
+| `commands/pycemrgise.md`             | `/pycemrgise` slash command                               | Hand-maintained           |
+| `commands/update-pycemrg-context.md` | `/update-pycemrg-context` slash command                   | Hand-maintained           |
+| `commands/refresh-source.md`         | `/refresh-source` slash command                           | Hand-maintained           |
+| `commands/add-library.md`            | `/add-library` slash command                              | Hand-maintained           |
+| `commands/export-api.md`             | `/export-api` slash command                               | Hand-maintained           |
+| `source/*.md`                        | Structured context reference per library (LLM-optimised) | `/refresh-source`         |
 
 ## Setup
 
-This repo is designed to be symlinked into the right Claude Code locations.
-Run the following once after cloning:
+Clone this repo alongside your other pycemrg repos, then run the install script:
+
+```
+Recommended layout:
+  ~/dev/
+    pycemrg/
+    pycemrg-image-analysis/
+    pycemrg-model-creation/
+    pycemrg-context/       <-- this repo
+```
 
 ```bash
-# 1. Clone alongside your other pycemrg repos
-# Recommended layout:
-#   ~/dev/
-#     pycemrg/
-#     pycemrg-image-analysis/
-#     pycemrg-model-creation/
-#     pycemrg-context/       <-- this repo
-
 git clone <url> ~/dev/pycemrg-context
 cd ~/dev/pycemrg-context
-
-# 2. Symlink both slash commands into your global Claude commands folder
-mkdir -p ~/.claude/commands
-ln -sf ~/dev/pycemrg-context/commands/pycemrgise.md ~/.claude/commands/pycemrgise.md
-ln -sf ~/dev/pycemrg-context/commands/update-pycemrg-context.md ~/.claude/commands/update-pycemrg-context.md
-
-# 3. Verify the command appears in Claude Code
-# Open Claude Code in any project directory and type /pycemrgise
-# It should appear in the autocomplete list.
+./install.sh
 ```
+
+The install script:
+- Symlinks all `commands/*.md` into `~/.claude/commands/`
+- Detects sibling library directories and writes `LIBRARY_PATHS.md`
+
+`LIBRARY_PATHS.md` is gitignored and machine-specific. Re-run `./install.sh`
+if you move any library repo. If a library is not found at the expected path,
+the script warns you and leaves a placeholder — edit the file manually.
+
+Start a new Claude Code session after running the script.
 
 ## Usage
 
@@ -45,7 +50,7 @@ In any Claude Code session involving pycemrg work, run `/pycemrgise` before
 describing your task. Claude will:
 
 1. Load `PLACEMENT_GUIDE.md` and `PYCEMRG_SUITE_INDEX.md`
-2. Load only the relevant library API references for the task
+2. Load the relevant `source/[library].md` context references for the task
 3. Confirm its understanding before writing any code
 
 ## Update Cycle
@@ -54,62 +59,49 @@ When you add a feature to any library in the suite:
 
 ```
 1. Write the implementation
-2. Add the API entry to the library's docs/API_reference.md
-3. Run your packer tool to regenerate source/*.txt
-4. Open Claude Code from the pycemrg-context directory
-5. Run /update-pycemrg-context
-6. Review the diff summary Claude presents
-7. Confirm — Claude patches PLACEMENT_GUIDE.md and PYCEMRG_SUITE_INDEX.md
-8. Commit everything together
+2. Open Claude Code from the pycemrg-context directory
+3. Run /refresh-source [library]    -- regenerates source/[library].md
+4. Review and confirm the diff
+5. Run /update-pycemrg-context      -- patches PLACEMENT_GUIDE.md and PYCEMRG_SUITE_INDEX.md
+6. Review and confirm the diff
+7. Commit everything together
 ```
 
-The `/update-pycemrg-context` command reads from `source/`, diffs against
-the current derived files, and patches only what has changed. It will flag
-any ambiguous placement decisions for human review before writing.
+`/refresh-source` runs `/export-api` on the library and writes a structured
+LLM-optimised markdown to `source/`. `/update-pycemrg-context` reads from those
+source files, diffs against the derived files, and patches only what changed.
+Both commands flag ambiguous decisions for human review before writing.
 
 ## Source Files
 
-The `source/` directory contains concatenated documentation produced by your
-packer tool. One file per library:
+The `source/` directory contains one structured context reference per library,
+generated by `/refresh-source`. These files are LLM-optimised: entry points,
+contracts, consumer responsibilities, and known constraints — not raw dumps.
 
-| File                                    | Source library         |
-| --------------------------------------- | ---------------------- |
-| `pycemrg_context_md.txt`                | pycemrg (core)         |
-| `pycemrg-image-analysis_context_md.txt` | pycemrg-image-analysis |
-| `pycmerg-model-creation_context_md.txt` | pycemrg-model-creation |
+| File                            | Source library         |
+| ------------------------------- | ---------------------- |
+| `source/pycemrg-core.md`        | pycemrg (core)         |
+| `source/pycemrg-image-analysis.md` | pycemrg-image-analysis |
+| `source/pycemrg-model-creation.md` | pycemrg-model-creation |
 
-These are the ground truth. `PLACEMENT_GUIDE.md` and `PYCEMRG_SUITE_INDEX.md` are
-derived from them and should never be edited directly -- use the update cycle.
+These files do not exist until you run `/refresh-source` for the first time.
+`PLACEMENT_GUIDE.md` and `PYCEMRG_SUITE_INDEX.md` are derived from them and
+should never be edited directly — use the update cycle.
 
 ## Maintenance
 
-## Manual Maintenance
+To add a new library, run `/add-library <name> <path>` — it patches all suite
+files automatically. For manual edits, the four files that contain library tables are:
 
-Only two things require direct edits:
+- `commands/pycemrgise.md` — source file list in Step 2
+- `commands/update-pycemrg-context.md` — source table in Step 1
+- `commands/refresh-source.md` — target table in Step 1
+- `install.sh` — `LIBRARIES` map
 
-- `commands/pycemrgise.md` -- if you change your directory layout, update the `@file` paths
-- `commands/update-pycemrg-context.md` -- if you add a fourth library, add its source file here
+`LIBRARY_PATHS.md` is machine-generated — edit manually only to correct a wrong path,
+then note that re-running `./install.sh` will overwrite your changes.
 
 Everything else is managed through the update cycle above.
-
-### Path assumptions
-
-The `pycemrgise.md` command uses relative `@file` paths assuming this layout:
-
-```
-~/dev/
-  pycemrg/
-  pycemrg-image-analysis/
-  pycemrg-model-creation/
-  pycemrg-context/
-    commands/
-      pycemrgise.md         <- symlinked to ~/.claude/commands/
-    PLACEMENT_GUIDE.md
-    PYCEMRG_SUITE_INDEX.md
-    README.md
-```
-
-If your layout differs, update the paths in `commands/pycemrgise.md` accordingly.
 
 ## Relationship to individual library CLAUDE.md files
 
