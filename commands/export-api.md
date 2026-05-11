@@ -18,11 +18,23 @@ ask for one before writing.
 
 The file must follow this structure:
 
-```markdown
+````markdown
 # [Project Name] — API Reference for External Consumers
 
 ## Purpose
 One or two sentences: what does this project do and what problem does it solve?
+
+## Capabilities
+High-level bullet list of what this library lets a consumer DO, phrased
+as user tasks rather than module organisation. Used by the suite-level
+router to decide whether this library is relevant to a given project.
+
+- [Task-phrased capability, e.g. "Grow myocardium walls from blood pool labels"]
+- [Task-phrased capability, e.g. "Compute MSE/PSNR/SSIM for ML validation"]
+- [Task-phrased capability — keep these crisp, one line each]
+
+Aim for 5–10 bullets. If the library only has 1–2 capabilities, say so;
+if it has 20+, group them by theme.
 
 ## Install
 How to install or import this project as a dependency.
@@ -53,7 +65,7 @@ This project does not handle these itself.
 
 ## Known Constraints
 Anything that would surprise a developer integrating this for the first time.
-```
+````
 
 ## Constraints
 
@@ -61,4 +73,6 @@ Anything that would surprise a developer integrating this for the first time.
 - Do not document internal helpers, private methods, or test utilities
 - Keep each entry point description under 10 lines
 - Ground every claim in something observable in the code
+- The Capabilities section must be task-phrased, not class-phrased.
+  Write what the consumer can ACCOMPLISH, not what classes exist.
 - No emojis, no generic descriptions

@@ -1,116 +1,72 @@
 # pycemrg-context
 
-Suite-level context for AI agents (like Claude Code) when working across the pycemrg library ecosystem.
+Suite-level context for AI agents (Claude Code) when consumers compose 
+projects from the pycemrg library suite.
 
-## Contents
+## What this is for
 
-| File                                 | Purpose                                                   | Updated by                |
-| ------------------------------------ | --------------------------------------------------------- | ------------------------- |
-| `PLACEMENT_GUIDE.md`                 | Where does new functionality belong?                      | `/update-pycemrg-context` |
-| `PYCEMRG_SUITE_INDEX.md`             | What already exists and how to call it?                   | `/update-pycemrg-context` |
-| `commands/pycemrgise.md`             | `/pycemrgise` slash command                               | Hand-maintained           |
-| `commands/update-pycemrg-context.md` | `/update-pycemrg-context` slash command                   | Hand-maintained           |
-| `commands/refresh-source.md`         | `/refresh-source` slash command                           | Hand-maintained           |
-| `commands/add-library.md`            | `/add-library` slash command                              | Hand-maintained           |
-| `commands/export-api.md`             | `/export-api` slash command                               | Hand-maintained           |
-| `source/*.md`                        | Structured context reference per library (LLM-optimised) | `/refresh-source`         |
+When a user is building a project that needs pycemrg functionality 
+("extract atrial myocardium, then mesh it"), this repo lets Claude:
+
+1. Recommend which pycemrg libraries and functions to use
+2. Output the right install instructions per library (pip or git clone)
+3. Flag steps that aren't in the suite — distinguishing project-specific 
+   glue from things that look like missing suite capabilities
+
+This is a **consumer-side** tool. It does not handle contribution back to 
+the suite; that goes through normal GitHub Issues/PRs in the individual 
+library repos.
 
 ## Setup
 
-Clone this repo alongside your other pycemrg repos, then run the install script:
-
-```
-Recommended layout:
-  ~/dev/
-    pycemrg/
-    pycemrg-image-analysis/
-    pycemrg-model-creation/
-    pycemrg-context/       <-- this repo
-```
-
-```bash
+````bash
 git clone <url> ~/dev/pycemrg-context
 cd ~/dev/pycemrg-context
 ./install.sh
-```
+````
 
-The install script:
-- Symlinks all `commands/*.md` into `~/.claude/commands/`
-- Detects sibling library directories and writes `LIBRARY_PATHS.md`
-
-`LIBRARY_PATHS.md` is gitignored and machine-specific. Re-run `./install.sh`
-if you move any library repo. If a library is not found at the expected path,
-the script warns you and leaves a placeholder — edit the file manually.
-
-Start a new Claude Code session after running the script.
+The install script symlinks command files into `~/.claude/commands/`. 
+Re-run if you pull updates to the commands.
 
 ## Usage
 
-In any Claude Code session involving pycemrg work, run `/pycemrgise` before
-describing your task. Claude will:
+In any Claude Code session, run:
 
-1. Load `PLACEMENT_GUIDE.md` and `PYCEMRG_SUITE_INDEX.md`
-2. Load the relevant `source/[library].md` context references for the task
-3. Confirm its understanding before writing any code
+````
+/pycemrg-build
+````
 
-## Update Cycle
+Then describe what you want to build. Claude will:
 
-When you add a feature to any library in the suite:
+1. Decompose the task into steps
+2. Ask you to confirm the decomposition
+3. Route to the relevant library source files
+4. Produce a build plan tagging each step as SUITE / PROJECT / GAP
+5. Output consolidated install instructions
 
-```
-1. Write the implementation
-2. Open Claude Code from the pycemrg-context directory
-3. Run /refresh-source [library]    -- regenerates source/[library].md
-4. Review and confirm the diff
-5. Run /update-pycemrg-context      -- patches PLACEMENT_GUIDE.md and PYCEMRG_SUITE_INDEX.md
-6. Review and confirm the diff
-7. Commit everything together
-```
+## Repo contents
 
-`/refresh-source` runs `/export-api` on the library and writes a structured
-LLM-optimised markdown to `source/`. `/update-pycemrg-context` reads from those
-source files, diffs against the derived files, and patches only what changed.
-Both commands flag ambiguous decisions for human review before writing.
+| File                        | Purpose                                          | Maintained by      |
+| --------------------------- | ------------------------------------------------ | ------------------ |
+| `LIBRARY_REGISTRY.md`       | One row per library: name, distribution, install | Hand (you)         |
+| `PYCEMRG_SUITE.md`          | One-paragraph + capabilities per library         | CI (future) / hand |
+| `source/*.md`               | Per-library API reference for consumers          | CI on push to main |
+| `commands/pycemrg-build.md` | The consumer slash command                       | Hand               |
+| `commands/export-api.md`    | Prompt run by CI to generate source files        | Hand               |
 
-## Source Files
+## Adding a library to the suite
 
-The `source/` directory contains one structured context reference per library,
-generated by `/refresh-source`. These files are LLM-optimised: entry points,
-contracts, consumer responsibilities, and known constraints — not raw dumps.
+1. Add a row to `LIBRARY_REGISTRY.md`
+2. Add a section to `PYCEMRG_SUITE.md` (until CI generates this)
+3. Set up the export-api CI workflow in the new library's repo 
+   (see `docs/CI_SETUP.md` — to be written when first CI workflow lands)
+4. Source file appears under `source/` on the library's next push to main
 
-| File                            | Source library         |
-| ------------------------------- | ---------------------- |
-| `source/pycemrg-core.md`        | pycemrg (core)         |
-| `source/pycemrg-image-analysis.md` | pycemrg-image-analysis |
-| `source/pycemrg-model-creation.md` | pycemrg-model-creation |
+## Relationship to library CLAUDE.md files
 
-These files do not exist until you run `/refresh-source` for the first time.
-`PLACEMENT_GUIDE.md` and `PYCEMRG_SUITE_INDEX.md` are derived from them and
-should never be edited directly — use the update cycle.
-
-## Maintenance
-
-To add a new library, run `/add-library <name> <path>` — it patches all suite
-files automatically. For manual edits, the four files that contain library tables are:
-
-- `commands/pycemrgise.md` — source file list in Step 2
-- `commands/update-pycemrg-context.md` — source table in Step 1
-- `commands/refresh-source.md` — target table in Step 1
-- `install.sh` — `LIBRARIES` map
-
-`LIBRARY_PATHS.md` is machine-generated — edit manually only to correct a wrong path,
-then note that re-running `./install.sh` will overwrite your changes.
-
-Everything else is managed through the update cycle above.
-
-## Relationship to individual library CLAUDE.md files
-
-Each library has its own `CLAUDE.md` covering project-specific commands,
-architecture, and gotchas. This repo is not a replacement for those files.
-
-| Scope                               | Location                          |
-| ----------------------------------- | --------------------------------- |
-| Personal practices, manifest        | `~/.claude/CLAUDE.md`             |
-| Suite-level placement + index       | This repo                         |
-| Library-specific commands + gotchas | `{library}/CLAUDE.md`             |
-| Full API reference                  | `{library}/docs/API_reference.md` |
+| Scope                               | Location                                        |
+| ----------------------------------- | ----------------------------------------------- |
+| Personal practices, manifest        | `~/.claude/CLAUDE.md`                           |
+| Suite-level consumer routing        | This repo                                       |
+| Library-specific commands + gotchas | `{library}/CLAUDE.md`                           |
+| Full per-library API reference      | `source/{library}.md` (this repo, CI-generated) |
