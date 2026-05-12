@@ -5,8 +5,10 @@ libraries and functions to use, where gaps exist, and produce a build plan.
 
 ## Step 0: Load suite overview
 
-Read @../LIBRARY_REGISTRY.md to find install instructions per library.
-Read @../PYCEMRG_SUITE.md to identify which libraries cover which capabilities.
+## Step 0: Load suite overview
+
+Read @~/.claude/pycemrg-context/LIBRARY_REGISTRY.md to find install instructions per library.
+Read @~/.claude/pycemrg-context/PYCEMRG_SUITE.md to identify which libraries cover which capabilities.
 
 ## Step 1: Decompose the task
 
@@ -26,13 +28,14 @@ Example: "extract myocardium of the two atria with these labels, then create a m
 Based on the confirmed decomposition, identify which library each step 
 likely involves. Load only those source files:
 
-- pycemrg core:            @../source/pycemrg-core.md
-- pycemrg-image-analysis:  @../source/pycemrg-image-analysis.md
-- pycemrg-meshing:         @../source/pycemrg-meshing.md
-- pycemrg-model-creation:  @../source/pycemrg-model-creation.md
+- pycemrg core:            @~/.claude/pycemrg-context/source/pycemrg-core.md
+- pycemrg-image-analysis:  @~/.claude/pycemrg-context/source/pycemrg-image-analysis.md
+- pycemrg-meshing:         @~/.claude/pycemrg-context/source/pycemrg-meshing.md
+- pycemrg-model-creation:  @~/.claude/pycemrg-context/source/pycemrg-model-creation.md
 
 If a source file does not exist, tell the user that library hasn't been 
 indexed yet, and proceed with what's available.
+
 
 ## Step 3: Produce the build plan
 
