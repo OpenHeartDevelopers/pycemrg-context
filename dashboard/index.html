@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>pycemrg-build</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f1419;
+            --panel: #1a1f2e;
+            --panel-user: #1f2638;
+            --border: #2a3142;
+            --text: #d4d4d4;
+            --muted: #8b92a3;
+            --accent: #6ba2f5;
+            --accent-alt: #c08af5;
+            --code-bg: #0a0e15;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1rem 2rem 0.5rem;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: var(--accent);
+            margin: 0 0 0.25rem;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        #transcript {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 2rem;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .msg {
+            margin-bottom: 1rem;
+            padding: 1rem 1.25rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .msg.user {
+            background: var(--panel-user);
+            border-left: 3px solid var(--accent-alt);
+        }
+
+        .msg.assistant {
+            background: var(--panel);
+            border-left: 3px solid var(--accent);
+        }
+
+        .msg .role {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .msg h1, .msg h2, .msg h3 { color: var(--accent); }
+        .msg h1 { font-size: 1.2rem; }
+        .msg h2 { font-size: 1.05rem; margin-top: 1.5rem; }
+        .msg h3 { font-size: 0.95rem; }
+
+        .msg code {
+            background: var(--code-bg);
+            padding: 0.1rem 0.35rem;
+            border-radius: 3px;
+            font-size: 0.85rem;
+        }
+
+        .msg pre {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .msg pre code {
+            padding: 0;
+            background: none;
+        }
+
+        .msg table {
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        .msg th, .msg td {
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.8rem;
+            text-align: left;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+            padding: 1rem 2rem;
+        }
+
+        .composer {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 90px;
+            padding: 0.75rem;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        button {
+            padding: 0.55rem 1.1rem;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.92rem;
+        }
+
+        button.secondary {
+            background: transparent;
+            color: var(--accent-alt);
+            border: 1px solid var(--accent-alt);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
+        .status {
+            color: var(--muted);
+            font-size: 0.88rem;
+            margin-left: auto;
+        }
+
+        .error {
+            margin: 0 0 1rem;
+            padding: 1rem;
+            background: #2a1a1a;
+            border: 1px solid #5a2a2a;
+            color: #f5a5a5;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 0.82rem;
+            margin-top: 0.4rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>pycemrg-build</h1>
+        <div class="subtitle">Describe your project. Iterate on the decomposition. Click <em>Finalize plan</em> when you're ready for the full build document + scaffold.</div>
+    </header>
+
+    <div id="transcript"></div>
+
+    <footer>
+        <div class="composer">
+            <div id="error" class="error" style="display:none"></div>
+            <textarea id="input" placeholder="e.g. Extract the myocardium of the two atria from a segmentation with labels 5 and 6, then create a volumetric mesh from the result."></textarea>
+            <div class="controls">
+                <button id="send" onclick="send()">Send</button>
+                <button id="finalize" class="secondary" onclick="finalize()">Finalize plan</button>
+                <span class="status" id="status"></span>
+            </div>
+            <div class="hint">Cmd/Ctrl-Enter to send. Finalize sends the <code>__FINALIZE__</code> sentinel along with any text in the box.</div>
+        </div>
+    </footer>
+
+    <script>
+        let sessionId = null;
+
+        async function ensureSession() {
+            if (sessionId) return sessionId;
+            const resp = await fetch("/session", { method: "POST" });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || "failed to create session");
+            sessionId = data.id;
+            return sessionId;
+        }
+
+        function addMessage(role, text) {
+            const transcript = document.getElementById("transcript");
+            const el = document.createElement("div");
+            el.className = "msg " + role;
+            el.innerHTML = `<div class="role">${role}</div>` + marked.parse(text);
+            transcript.appendChild(el);
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+
+        async function postMessage(text) {
+            const sendBtn = document.getElementById("send");
+            const finalizeBtn = document.getElementById("finalize");
+            const status = document.getElementById("status");
+            const error = document.getElementById("error");
+
+            error.style.display = "none";
+            sendBtn.disabled = true;
+            finalizeBtn.disabled = true;
+            status.textContent = "Working… (10-30s typical)";
+
+            try {
+                const id = await ensureSession();
+                addMessage("user", text);
+
+                const resp = await fetch(`/session/${id}/message`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text }),
+                });
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    error.textContent = (data.error || "request failed") + (data.stderr ? "\n\n" + data.stderr : "");
+                    error.style.display = "block";
+                } else {
+                    addMessage("assistant", data.reply);
+                }
+            } catch (e) {
+                error.textContent = "Network error: " + e.message;
+                error.style.display = "block";
+            } finally {
+                sendBtn.disabled = false;
+                finalizeBtn.disabled = false;
+                status.textContent = "";
+            }
+        }
+
+        async function send() {
+            const input = document.getElementById("input");
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+            await postMessage(text);
+        }
+
+        async function finalize() {
+            const input = document.getElementById("input");
+            const extra = input.value.trim();
+            const text = extra ? `${extra}\n\n__FINALIZE__` : "__FINALIZE__";
+            input.value = "";
+            await postMessage(text);
+        }
+
+        document.getElementById("input").addEventListener("keydown", (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") send();
+        });
+    </script>
+</body>
+
+</html>

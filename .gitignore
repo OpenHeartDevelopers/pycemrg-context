@@ -6,3 +6,6 @@ LIBRARY_PATHS.md
 .claude/** 
 
 .DS_Store
+
+dashboard/.venv/**
+dashboard/.venv
