@@ -8,7 +8,7 @@ column from `clone` to `pypi` — no other edits needed elsewhere.
 
 | Library                | Distribution | Install                                                                                                   |
 | ---------------------- | ------------ | --------------------------------------------------------------------------------------------------------- |
-| pycemrg                | pypi         | `git clone https://github.com/OpenHeartDevelopers/pycemrg`        |
+| pycemrg                | clone         | `git clone https://github.com/OpenHeartDevelopers/pycemrg && pip install -e pycemrg`        |
 | pycemrg-image-analysis | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-image-analysis && pip install -e pycemrg-image-analysis` |
 | pycemrg-meshing        | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-meshing && pip install -e pycemrg-meshing`               |
 | pycemrg-model-creation | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-model-creation && pip install -e pycemrg-model-creation` |
