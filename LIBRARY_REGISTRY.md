@@ -12,6 +12,7 @@ column from `clone` to `pypi` — no other edits needed elsewhere.
 | pycemrg-image-analysis | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-image-analysis && pip install -e pycemrg-image-analysis` |
 | pycemrg-meshing        | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-meshing && pip install -e pycemrg-meshing`               |
 | pycemrg-model-creation | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-model-creation && pip install -e pycemrg-model-creation` |
+| pycemrg-interpolation | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-interpolation && pip install -e pycemrg-interpolation` |
 
 ## Docs palette registry
 
@@ -29,6 +30,7 @@ primary unique.
 | pycemrg-image-analysis | red     | *(existing — preserve)* |
 | pycemrg-meshing        | teal    | cyan    |
 | pycemrg-model-creation | amber   | orange  |
+| pycemrg-interpolation  | purple  | deep purple |
 
 ## Canonical branch
 
