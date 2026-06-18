@@ -20,7 +20,7 @@ or writes the filesystem except through explicit IO helpers, and orchestration
 - Compute volumes per label, inspect/relabel images by integer or human-readable name
 - Scaffold YAML/JSON config (labels, parameters, semantic maps) from named anatomy components
 - Run pre-sequenced workflow recipes (biventricular, four-chamber, atria with veins)
-- ML helpers: MSE/PSNR/SSIM metrics, intensity/spatial augmentation, artifact simulation, patch sampling
+- ML helpers: MSE/PSNR/SSIM metrics, per-label Dice overlap, intensity/spatial augmentation, artifact simulation, patch sampling
 - Convert between SimpleITK images and the `.inr` format
 
 ## Install
@@ -129,6 +129,9 @@ Import: `from pycemrg_image_analysis.utilities import <name>`
 - Postprocessing: `inspect_labels`, `relabel_image(_by_name)`, `remove/keep_labels_by_name`,
   `compute_label_volumes` -> `LabelVolumes`
 - Metrics (ML): `compute_mse`, `compute_psnr`, `compute_ssim`, `compute_gradient_error`, `compare_volumes`
+  (intensity metrics, [0,1] input); `compute_dice(predicted, ground_truth) -> float`,
+  `compute_dice_per_label(predicted, ground_truth, labels=None, include_background=False) -> Dict[int, float]`
+  (segmentation overlap on binary/integer-label masks — NOT normalized intensities)
 - Intensity (ML): `clip_intensities`, `normalize_min_max`, `normalize_percentile`
 - Augmentation (ML): `augment_brightness`, `augment_contrast`, `augment_noise`, `create_slice_shifted_volumes`
 - Sampling (ML): `extract_center_patch`, `extract_random_patch`
@@ -169,7 +172,10 @@ All in `pycemrg_image_analysis.logic.contracts`, frozen dataclasses unless noted
 
 ## Known Constraints
 - ML utilities (`metrics.py`, `augmentation.py`) require input normalized to [0, 1] in (Z, Y, X)
-  order; wrong axis order or range produces silently incorrect results.
+  order; wrong axis order or range produces silently incorrect results. Exception: the Dice
+  metrics (`compute_dice`, `compute_dice_per_label`) take binary masks / integer label maps, not
+  normalized intensities. Dice returns NaN when both masks are empty; per-label drops background
+  label 0 unless `include_background=True`.
 - `downsample_volume(preserve_extent=True)` uses `(dim-1)*spacing`; default uses `dim*spacing`.
   Results diverge for small volumes — set the flag only for physical-extent-normalized pipelines.
 - `keep_largest_component` cleans each label independently; `keep_largest_structure` treats given
