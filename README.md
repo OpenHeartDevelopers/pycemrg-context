@@ -25,8 +25,8 @@ cd ~/dev/pycemrg-context
 ./install.sh
 ````
 
-The install script symlinks command files into `~/.claude/commands/`. 
-Re-run if you pull updates to the commands.
+The install script symlinks command files into `~/.claude/commands/` and 
+skills into `~/.claude/skills/`. Re-run if you pull updates.
 
 ## Usage
 
@@ -53,6 +53,7 @@ Then describe what you want to build. Claude will:
 | `source/*.md`               | Per-library API reference for consumers          | CI on push to main |
 | `commands/pycemrg-build.md` | The consumer slash command                       | Hand               |
 | `commands/export-api.md`    | Prompt run by CI to generate source files        | Hand               |
+| `pycemrg-docs/`             | Skill: scaffold/refresh a library's MkDocs site  | Hand               |
 
 ## Adding a library to the suite
 

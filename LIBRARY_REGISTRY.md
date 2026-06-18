@@ -13,6 +13,23 @@ column from `clone` to `pypi` — no other edits needed elsewhere.
 | pycemrg-meshing        | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-meshing && pip install -e pycemrg-meshing`               |
 | pycemrg-model-creation | clone        | `git clone https://github.com/OpenHeartDevelopers/pycemrg-model-creation && pip install -e pycemrg-model-creation` |
 
+## Docs palette registry
+
+Each suite library gets a unique MkDocs Material `primary`/`accent` colour so the
+sites are visually distinct but clearly one family. Used by the `pycemrg-docs`
+skill when scaffolding a fresh docs site. Colours are spread around the wheel
+(red → amber → teal → indigo) for at-a-glance distinction. On a docs **refresh**
+the skill preserves a site's existing palette; it only assigns from this table on
+a **fresh scaffold**. Add a row when a library joins the suite, keeping each
+primary unique.
+
+| Library                | Primary | Accent  |
+| ---------------------- | ------- | ------- |
+| pycemrg                | indigo  | blue    |
+| pycemrg-image-analysis | red     | *(existing — preserve)* |
+| pycemrg-meshing        | teal    | cyan    |
+| pycemrg-model-creation | amber   | orange  |
+
 ## Canonical branch
 
 All clone-distribution libraries: `main`.

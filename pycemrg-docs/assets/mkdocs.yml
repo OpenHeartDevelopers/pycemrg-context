@@ -1,0 +1,83 @@
+# Documentation site config for a pycemrg-suite library.
+# Copy to the repo root and fill in the FILL-IN markers below.
+# The theme / markdown_extensions / plugins blocks are intentionally generic —
+# keep them identical across the suite so every library shares the same look.
+
+site_name: FILL-IN-library-name            # e.g. pycemrg-image-analysis
+site_description: FILL-IN-one-line-description — CEMRG, Imperial College London
+site_url: https://openheartdevelopers.github.io/FILL-IN-repo/
+repo_url: https://github.com/OpenHeartDevelopers/FILL-IN-repo
+repo_name: OpenHeartDevelopers/FILL-IN-repo
+
+theme:
+  name: material
+  palette:
+    # Give each library its own primary/accent colour so they are visually
+    # distinct but clearly part of one suite. (image-analysis uses red.)
+    - scheme: default
+      primary: FILL-IN-colour            # e.g. indigo, teal, green, red
+      accent: FILL-IN-accent             # e.g. deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: FILL-IN-colour
+      accent: FILL-IN-accent
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.tracking
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+
+plugins:
+  - search
+  # Optional: auto-generate API reference from docstrings. Uncomment and add
+  # `mkdocstrings[python]` to the docs install step in .github/workflows/docs.yml.
+  # - mkdocstrings:
+  #     handlers:
+  #       python:
+  #         options:
+  #           show_source: false
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+# Standard suite nav spine. Delete sections a given library does not have;
+# keep the ordering so the suite feels consistent.
+nav:
+  - Home: index.md
+  - Getting Started: getting-started/index.md
+  - Tutorials:
+    - FILL-IN-tutorial-title: tutorials/FILL-IN.md
+  - Architecture: api/overview.md
+  - API Reference:
+    - api/index.md
+    # - FILL-IN-module: api/FILL-IN.md
+  - CLI: cli/FILL-IN.md
+  - Developer Guides:
+    - FILL-IN-guide-title: guides/FILL-IN.md
