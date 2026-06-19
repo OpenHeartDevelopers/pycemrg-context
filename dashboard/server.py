@@ -9,10 +9,11 @@ Endpoints:
     Creates a new chat session with an empty transcript.
 
   POST /session/<id>/message
-    Body: {"text": "user message"}
+    Body: {"text": "user message", "model": "sonnet"|"opus" (optional)}
     -> {"reply": "assistant markdown"}
-    Appends the user turn, calls `claude -p` with the full transcript,
-    captures stdout as the assistant turn, returns it.
+    Appends the user turn, calls `claude -p --model <model>` with the full
+    transcript, captures stdout as the assistant turn, returns it.
+    "model" is validated against ALLOWED_MODELS; defaults to DEFAULT_MODEL.
 
 The user signals "finalize the plan" either by clicking the Finalize
 button in the UI (which sends the sentinel __FINALIZE__) or in plain
@@ -37,6 +38,10 @@ COMMAND_FILE = CLAUDE_DIR / "commands" / "pycemrg-build.md"
 
 TIMEOUT_SECONDS = 120
 MAX_SESSIONS = 50
+
+# Allowlist so the UI toggle can't inject arbitrary `--model` values.
+ALLOWED_MODELS = {"sonnet", "opus"}
+DEFAULT_MODEL = "sonnet"
 
 # session_id -> list of {"role": "user"|"assistant", "text": str}
 # OrderedDict so we can LRU-evict the oldest when we hit the cap.
@@ -96,6 +101,13 @@ def post_message(session_id: str):
     if not text:
         return jsonify({"error": "text is required"}), 400
 
+    model = (data.get("model") or DEFAULT_MODEL).strip()
+    if model not in ALLOWED_MODELS:
+        return jsonify({
+            "error": f"unknown model '{model}'; "
+                     f"expected one of {sorted(ALLOWED_MODELS)}"
+        }), 400
+
     turns = _sessions[session_id]
     turns.append({"role": "user", "text": text})
     _touch(session_id)
@@ -105,7 +117,7 @@ def post_message(session_id: str):
 
     try:
         result = subprocess.run(
-            ["claude", "-p"],
+            ["claude", "-p", "--model", model],
             input=prompt,
             capture_output=True,
             text=True,

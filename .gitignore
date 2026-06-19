@@ -9,3 +9,5 @@ LIBRARY_PATHS.md
 
 dashboard/.venv/**
 dashboard/.venv
+
+**/__pycache__/

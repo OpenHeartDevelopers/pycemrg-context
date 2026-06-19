@@ -181,6 +181,27 @@
             cursor: wait;
         }
 
+        select#model {
+            padding: 0.5rem 0.6rem;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.88rem;
+            cursor: pointer;
+        }
+
+        select#model:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        select#model:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
         .status {
             color: var(--muted);
             font-size: 0.88rem;
@@ -222,6 +243,10 @@
             <div class="controls">
                 <button id="send" onclick="send()">Send</button>
                 <button id="finalize" class="secondary" onclick="finalize()">Finalize plan</button>
+                <select id="model" title="Model used for this message">
+                    <option value="sonnet">Sonnet (fast)</option>
+                    <option value="opus">Opus (deep)</option>
+                </select>
                 <span class="status" id="status"></span>
             </div>
             <div class="hint">Cmd/Ctrl-Enter to send. Finalize sends the <code>__FINALIZE__</code> sentinel along with any text in the box.</div>
@@ -252,12 +277,14 @@
         async function postMessage(text) {
             const sendBtn = document.getElementById("send");
             const finalizeBtn = document.getElementById("finalize");
+            const modelSel = document.getElementById("model");
             const status = document.getElementById("status");
             const error = document.getElementById("error");
 
             error.style.display = "none";
             sendBtn.disabled = true;
             finalizeBtn.disabled = true;
+            modelSel.disabled = true;
             status.textContent = "Working… (10-30s typical)";
 
             try {
@@ -267,7 +294,7 @@
                 const resp = await fetch(`/session/${id}/message`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text }),
+                    body: JSON.stringify({ text, model: modelSel.value }),
                 });
                 const data = await resp.json();
 
@@ -283,6 +310,7 @@
             } finally {
                 sendBtn.disabled = false;
                 finalizeBtn.disabled = false;
+                modelSel.disabled = false;
                 status.textContent = "";
             }
         }
