@@ -23,6 +23,7 @@ Sessions live in process memory only. Restarting the server clears them.
 """
 
 import collections
+import shutil
 import subprocess
 import uuid
 from pathlib import Path
@@ -42,6 +43,12 @@ MAX_SESSIONS = 50
 # Allowlist so the UI toggle can't inject arbitrary `--model` values.
 ALLOWED_MODELS = {"sonnet", "opus"}
 DEFAULT_MODEL = "sonnet"
+
+# Resolve the Claude CLI up front. On Windows the executable on PATH is
+# `claude.cmd`, which subprocess won't find from the bare name "claude" without
+# shell=True; shutil.which() resolves the right extension cross-platform. Fall
+# back to the bare name so the FileNotFoundError path below still reports nicely.
+CLAUDE_BIN = shutil.which("claude") or "claude"
 
 # session_id -> list of {"role": "user"|"assistant", "text": str}
 # OrderedDict so we can LRU-evict the oldest when we hit the cap.
@@ -76,12 +83,13 @@ def create_session():
     if not COMMAND_FILE.exists():
         return jsonify({
             "error": f"command file not found at {COMMAND_FILE}. "
-                     "Did you run install.sh from pycemrg-context?"
+                     "Did you run install.sh (or install.ps1 on Windows) "
+                     "from pycemrg-context?"
         }), 500
     if not PYCEMRG_DIR.exists():
         return jsonify({
             "error": f"pycemrg-context data directory not found at {PYCEMRG_DIR}. "
-                     "Did you run install.sh?"
+                     "Did you run install.sh (or install.ps1 on Windows)?"
         }), 500
 
     session_id = uuid.uuid4().hex
@@ -117,7 +125,7 @@ def post_message(session_id: str):
 
     try:
         result = subprocess.run(
-            ["claude", "-p", "--model", model],
+            [CLAUDE_BIN, "-p", "--model", model],
             input=prompt,
             capture_output=True,
             text=True,

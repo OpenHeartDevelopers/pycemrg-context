@@ -1,0 +1,80 @@
+# Documentation site config for pycemrg-context — the suite-level context hub.
+# Adapted from the pycemrg-docs skill's template. The theme / markdown_extensions
+# blocks are kept identical to the suite libraries so every site shares one look;
+# the nav spine is reworked because this repo is a context hub, not a Python
+# library (no Tutorials / API Reference / CLI sections).
+
+site_name: pycemrg-context
+site_description: Suite-level context for composing projects from the pycemrg library suite — CEMRG, Imperial College London
+site_url: https://openheartdevelopers.github.io/pycemrg-context/
+repo_url: https://github.com/OpenHeartDevelopers/pycemrg-context
+repo_name: OpenHeartDevelopers/pycemrg-context
+
+theme:
+  name: material
+  palette:
+    # pycemrg-context is the neutral hub, not a suite library, so it uses a
+    # colour outside the library palette registry (indigo/red/teal/amber/purple).
+    - scheme: default
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.tracking
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  # Lets the suite pages pull in the canonical root files (PYCEMRG_SUITE.md,
+  # LIBRARY_REGISTRY.md) instead of duplicating them. base_path is the repo root.
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started/index.md
+  - The Suite:
+    - Overview: suite/overview.md
+    - Library Registry: suite/registry.md
+  - Commands & Skills:
+    - pycemrg-build: tools/pycemrg-build.md
+    - export-api: tools/export-api.md
+    - pycemrg-docs: tools/pycemrg-docs.md
+  - Dashboard: dashboard.md
+  - Contributing: contributing.md

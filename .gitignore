@@ -11,3 +11,6 @@ dashboard/.venv/**
 dashboard/.venv
 
 **/__pycache__/
+
+# MkDocs build output
+site/

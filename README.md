@@ -19,14 +19,32 @@ library repos.
 
 ## Setup
 
+### macOS / Linux
+
 ````bash
 git clone <url> ~/dev/pycemrg-context
 cd ~/dev/pycemrg-context
 ./install.sh
 ````
 
-The install script symlinks command files into `~/.claude/commands/` and 
-skills into `~/.claude/skills/`. Re-run if you pull updates.
+The install script **symlinks** command files into `~/.claude/commands/` and 
+skills into `~/.claude/skills/`. Because they're symlinks, a `git pull` is 
+picked up automatically; re-run only if files were added or removed.
+
+### Windows (PowerShell)
+
+````powershell
+git clone <url> $HOME\dev\pycemrg-context
+cd $HOME\dev\pycemrg-context
+.\install.ps1
+````
+
+`install.ps1` **copies** the same files into `%USERPROFILE%\.claude` (no 
+symlinks, so no Developer Mode or admin needed). Because they're copies, 
+**re-run `install.ps1` after every `git pull`** to refresh the installed files.
+
+> If PowerShell blocks the script, allow it for the current process only:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
 
 ## Usage
 
