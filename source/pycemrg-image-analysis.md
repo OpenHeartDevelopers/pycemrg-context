@@ -19,6 +19,8 @@ or writes the filesystem except through explicit IO helpers, and orchestration
 - Diagnose image labels against an anatomy schematic and derive remapping suggestions
 - Compute volumes per label, inspect/relabel images by integer or human-readable name
 - Scaffold YAML/JSON config (labels, parameters, semantic maps) from named anatomy components
+- Inspect the schematic catalogue and reconcile schematic label names against an existing
+  `labels.yaml`, flagging value mismatches and probable duplicate structures
 - Run pre-sequenced workflow recipes (biventricular, four-chamber, atria with veins)
 - ML helpers: MSE/PSNR/SSIM metrics, per-label Dice overlap, intensity/spatial augmentation, artifact simulation, patch sampling
 - Convert between SimpleITK images and the `.inr` format
@@ -114,7 +116,37 @@ Purpose: Compare an image's labels against a schematic and derive an int→int r
 ```python
 LabelDiagnostic().check_image_against_schematic(...) -> DiagnosticReport
 LabelRemapper().suggest_mapping_from_report(report) -> dict[int, int]
+get_present_labels(image: sitk.Image) -> set[int]              # non-zero labels only
+check_required_labels(image, required_label_values: set[int]) -> tuple[bool, set[int]]
+list_available_schematics() -> None                            # prints, returns nothing
 ```
+Notes: `get_present_labels` / `check_required_labels` are the runtime pre-flight pair — call
+them before a workflow step to skip steps whose input anatomy is absent. `check_labels(image_path,
+schematic_name) -> DiagnosticReport` is the one-call convenience wrapper (loads, diagnoses, and
+*prints*), but it is NOT re-exported from `pycemrg_image_analysis.utilities` — import it as
+`from pycemrg_image_analysis.utilities.label_tools import check_labels`.
+
+### Schematic inspection and label reconciliation
+Import: `from pycemrg_image_analysis.utilities import schematic_tools`
+Purpose: Inspect the schematic catalogue and reconcile a schematic's label vocabulary against an
+existing `labels.yaml` before scaffolding. Stateless — returns data or strings, never writes.
+```python
+resolve_target(token: str) -> Tuple[str, List[str], Dict[str, dict]]   # KeyError if unknown
+category_of(component_name: str) -> str                               # '' if unknown
+summarize_schematic(name: str, schematic: dict) -> str
+render_category_overview() -> str
+render_application_step(step: dict) -> str
+reconcile_labels(schematic_labels: Dict[str,int], existing_labels: Dict[str,int]) -> List[ReconciledLabel]
+merged_labels(existing_labels, reconciled) -> Dict[str, int]
+merged_labels_yaml(existing_labels, reconciled) -> str                # labels.yaml body
+render_reconcile_report(reconciled) -> str
+CATEGORIES: Dict[str, Dict[str, dict]]                                # myocardium / valves / rings
+```
+Notes: Not re-exported from `utilities/__init__.py` — import the module by full path. `resolve_target`
+accepts either a category name or a single component name. `reconcile_labels` keeps your existing
+integer when a name already exists (status `VALUE_MISMATCH`), and reassigns a new name to the next
+free integer when its schematic default is taken, recording the occupying names in
+`possible_conflicts`.
 
 ### Utility functions (stateless, import-and-call)
 Import: `from pycemrg_image_analysis.utilities import <name>`
@@ -122,12 +154,16 @@ Import: `from pycemrg_image_analysis.utilities import <name>`
 - Masks: `MaskOperationMode`, `add_masks`, `add_masks_replace`, `add_masks_replace_except`,
   `add_masks_replace_only`, `remove_label`, `remove_labels`, `keep_labels`, `get_mask_operation_dispatcher`
 - Components: `keep_largest_component` (per-label), `keep_largest_structure` (labels as one structure)
-- Spatial: `resample_to_isotropic`, `compute_target_shape`, `compute_actual_spacing`,
-  `get_voxel_physical_bounds`, `extract_slice_voxels`, `sample_image_at_points`
+- Spatial: `compute_target_shape`, `compute_actual_spacing`, `get_voxel_physical_bounds`,
+  `extract_slice_voxels`, `sample_image_at_points`, `PyCemrgInterp`, and
+  `resample_to_isotropic(image, target_spacing: float = 1.0, interpolator: PyCemrgInterp = PyCemrgInterp.linear)`.
+  `PyCemrgInterp` is an enum wrapping the SimpleITK interpolators: `linear`, `bspline`, `nearest`.
 - Geometry: `calculate_cylinder_mask` (expects (Z, Y, X))
 - Filters: `and_filter`, `distance_map`, `threshold_filter`
 - Postprocessing: `inspect_labels`, `relabel_image(_by_name)`, `remove/keep_labels_by_name`,
-  `compute_label_volumes` -> `LabelVolumes`
+  `compute_label_volumes` -> `LabelVolumes`,
+  `get_labels_plain(image, remove_bck_label: bool = True, background_label: int = 0) -> list[int]`
+  (present integer labels; needs no `LabelManager`, unlike `inspect_labels`)
 - Metrics (ML): `compute_mse`, `compute_psnr`, `compute_ssim`, `compute_gradient_error`, `compare_volumes`
   (intensity metrics, [0,1] input); `compute_dice(predicted, ground_truth) -> float`,
   `compute_dice_per_label(predicted, ground_truth, labels=None, include_background=False) -> Dict[int, float]`
@@ -158,7 +194,11 @@ All in `pycemrg_image_analysis.logic.contracts`, frozen dataclasses unless noted
 - `CylinderCreationContract(image_shape: Tuple[int,int,int], origin: np.ndarray, spacing: np.ndarray, points: np.ndarray, slicer_radius: float, slicer_height: float, output_path: Path)`
 - `PushStructureContract(pusher_wall_label: int, pushed_wall_label: int, pushed_bp_label: int, pushed_wall_thickness: float)`
 - `Recipe(name, description, steps: List[WorkflowStep], required_schematics: List[str])` and `WorkflowStep(step_type, component_name)` (in `recipes.py`)
-- `LabelVolumes`, `DiagnosticReport`, `LabelMismatch` (in utilities)
+- `LabelVolumes`, `DiagnosticReport`, `LabelMismatch` (in `utilities.label_tools`)
+- `ReconciledLabel(name: str, value: int, status: LabelStatus, schematic_default: int,
+  possible_conflicts: Tuple[str, ...] = ())` and `LabelStatus` enum
+  (`REUSED` / `VALUE_MISMATCH` / `NEW`) — in `utilities.schematic_tools`, frozen
+- `PyCemrgInterp` enum (`linear` / `bspline` / `nearest`) in `utilities.spatial`
 - Semantic-role enums: `MyocardiumSemanticRole`, `ValveSemanticRole`, `RingSemanticRole`; `ZERO_LABEL` constant.
 - Schematic blueprints: `from pycemrg_image_analysis.schematics import ALL_SCHEMATICS`.
 
@@ -171,6 +211,10 @@ All in `pycemrg_image_analysis.logic.contracts`, frozen dataclasses unless noted
 - Step ordering within `*Rule.application_steps`: steps write the same output array; wrong order silently overwrites anatomy.
 
 ## Known Constraints
+- `resample_to_isotropic` defaults to `PyCemrgInterp.linear`. That is correct for intensity
+  images and WRONG for label maps — linear interpolation invents intermediate voxel values
+  between label integers, silently producing labels that exist in no schematic. Pass
+  `interpolator=PyCemrgInterp.nearest` for any segmentation or label image.
 - ML utilities (`metrics.py`, `augmentation.py`) require input normalized to [0, 1] in (Z, Y, X)
   order; wrong axis order or range produces silently incorrect results. Exception: the Dice
   metrics (`compute_dice`, `compute_dice_per_label`) take binary masks / integer label maps, not
