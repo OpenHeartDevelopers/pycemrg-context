@@ -2,29 +2,23 @@
 
 ## Purpose
 Python wrapper for the `meshtools3d` and `laplace_solver` C++ binaries used in
-cardiac mesh generation workflows. Handles parameter-file authoring, binary
-discovery via `pycemrg.ModelManager`, and process invocation with correct
-library-path injection.
+cardiac mesh generation. Handles `.par` parameter-file authoring, binary
+discovery via `pycemrg.ModelManager`, process invocation with library-path
+injection, and typed reporting of the files a run produced.
 
 ## Capabilities
 
-- Author and persist a `meshtools3d`-compatible `.par` parameter file with
-  validated section/key schema
-- Load, override, and round-trip an existing `.par` file without losing unknown
-  sections being silently introduced
-- Build a structured job description that binds a segmentation path, output
-  directory, and output basename, then render it to a parameter file in one call
-- Convert a non-`.inr` segmentation to `.inr` via an injected converter before
-  constructing the job (converter is caller-supplied; this library imports no
-  image I/O)
-- Enumerate the output files a job is expected to produce given the parameter
-  flags (`out_carp`, `out_vtk`, `out_medit`)
-- Execute `meshtools3d` against a parameter file, resolving the binary either
-  from an explicit path or via `pycemrg.ModelManager` against the bundled
-  `models.yaml`
-- Execute `laplace_solver` against a parameter file using the same resolution
-  and library-injection mechanism
-- Emit a default parameter file from the CLI without writing any Python
+- Author, validate, and persist a `meshtools3d`-compatible `.par` file; unknown
+  sections or keys raise `KeyError` on both `set` and `load`
+- Load an existing `.par` file, merged over defaults so every core key is present
+- Build a job that binds segmentation, output directory, output basename, and
+  parameter-file path — or reconstruct one from an existing `.par`
+- Convert a non-`.inr` segmentation via a caller-injected converter; this
+  library imports no image I/O
+- Predict the output files a run will produce from the `[output] out_*` flags
+- Run `meshtools3d` with run-time path overrides that do not modify the `.par`
+- Run `laplace_solver` on an existing CARP mesh with `.vtx` boundary conditions
+- Emit a default parameter file from the CLI without writing Python
 
 ## Install
 
@@ -32,14 +26,20 @@ library-path injection.
 pip install pycemrg-meshing
 ```
 
-Requires `pycemrg` (for `ModelManager` and `CommandRunner`) and `pyyaml>=6`.
+Depends on `pycemrg` (`ModelManager`, `CommandRunner`), `pyyaml>=6`, `click>=8`.
+`pycemrg` is a sibling repo and is not on PyPI — install it first.
+
+Note: the published wheel currently omits the `pycemrg_meshing.logic`
+subpackage (no `__init__.py`, so `setuptools.packages.find` skips it) while the
+top-level `__init__.py` imports from it. Until fixed, install from source or an
+editable checkout.
 
 ## Key Entry Points
 
 ### MeshingParameters
-Import: `from pycemrg_meshing import MeshingParameters`  
-Purpose: In-memory representation of a `meshtools3d` `.par` file with a
-validated schema; every `set`/`get` call rejects unknown section or key names.
+Import: `from pycemrg_meshing import MeshingParameters`
+Purpose: In-memory `.par` file with a validated schema; `set`/`get` reject any
+unknown section or key.
 
 ```python
 MeshingParameters(config_file: str | Path | None = None)
@@ -52,105 +52,105 @@ MeshingParameters(config_file: str | Path | None = None)
 .create_dict() -> dict[str, dict[str, str]]
 ```
 
-Notes: `optionxform = str` is enforced; case-sensitive keys (`rescaleFactor`,
-`dimKrilovSp`) are preserved. `load` validates against the schema and merges
-over defaults, so the result always contains every required key.
+Notes: key case is preserved (`optionxform = str`) because the C++ side is
+case-sensitive. `save` creates parent directories. Extended keys (see
+`EXTENDED_DEFAULTS`) are accepted by `set`/`get` but are only written to disk
+once explicitly set; `get` returns their documented default until then.
 
 ---
 
 ### MeshingJob
-Import: `from pycemrg_meshing import MeshingJob`  
-Purpose: Frozen dataclass that binds a segmentation path, output directory,
-output basename, and parameter-file path; provides helpers to render and
-persist the parameter file and to predict output files.
+Import: `from pycemrg_meshing import MeshingJob`
+Purpose: Frozen path contract for one `meshtools3d` run, plus parameter
+rendering and output prediction.
 
 ```python
-MeshingJob.create(
-    segmentation_path: str | Path,
-    output_dir: str | Path,
-    output_name: str,
-    parfile_path: str | Path,
-) -> MeshingJob
+MeshingJob.create(segmentation_path, output_dir, output_name: str,
+                  parfile_path) -> MeshingJob
 
-MeshingJob.from_segmentation(
-    segmentation_path: str | Path,
-    output_dir: str | Path,
-    output_name: str,
-    parfile_path: str | Path,
-    *,
-    converter: Callable[[Path, Path], Path] | None = None,
-) -> MeshingJob
+MeshingJob.from_segmentation(segmentation_path, output_dir, output_name: str,
+                             parfile_path, *,
+                             converter: Callable[[Path, Path], Path] | None = None
+                             ) -> MeshingJob
 
-.to_parameters(
-    *,
-    base: MeshingParameters | None = None,
-    overrides: Mapping[str, Mapping[str, object]] | None = None,
-) -> MeshingParameters
+MeshingJob.from_parfile(parfile_path) -> MeshingJob
 
-.write_parfile(
-    *,
-    base: MeshingParameters | None = None,
-    overrides: Mapping[str, Mapping[str, object]] | None = None,
-) -> Path
-
-.expected_outputs(params: MeshingParameters) -> list[Path]
+.to_parameters(*, base: MeshingParameters | None = None,
+               overrides: Mapping[str, Mapping[str, object]] | None = None
+               ) -> MeshingParameters
+.write_parfile(*, base=None, overrides=None) -> Path
+.expected_outputs(params: MeshingParameters, *, output_dir=None,
+                  output_name: str | None = None) -> list[Path]
 ```
 
-Notes: `from_segmentation` raises `ValueError` if the input is not `.inr` and
-no `converter` is provided. `expected_outputs` covers CARP ASCII, VTK ASCII,
-and MEDIT only; binary variants and the Laplace potential field are not
-enumerated.
+Notes: `from_segmentation` raises `ValueError` for a non-`.inr` input when no
+`converter` is given; the converted file lands beside `parfile_path`.
+`from_parfile` joins `[segmentation] seg_dir` + `seg_name`. `expected_outputs`
+covers CARP ASCII, VTK ASCII, and MEDIT only.
+
+---
+
+### LaplaceSolveJob
+Import: `from pycemrg_meshing import LaplaceSolveJob`
+Purpose: Frozen path contract for one `laplace_solver` run over an existing
+CARP mesh. Unlike `MeshingJob` there is no `.par` carrying these paths, so the
+job renders them itself.
+
+```python
+LaplaceSolveJob.create(mesh_dir, mesh_name: str, output_dir, output_name: str,
+                       *, zero_bc: tuple = (), one_bc: tuple = (),
+                       parfile_path=None) -> LaplaceSolveJob
+
+.as_cli_args() -> list[str]
+.expected_outputs(options: LaplaceSolveOptions | None = None, *,
+                  output_dir=None, output_name: str | None = None) -> list[Path]
+```
+
+Notes: `parfile_path` is optional — the `-f` file only carries
+`[laplacesolver]` tolerances. Thickness evaluation is ON unless
+`LaplaceSolveOptions.no_thickness` is set, and drives most predicted outputs.
 
 ---
 
 ### MeshtoolsRunner
-Import: `from pycemrg_meshing import MeshtoolsRunner`  
-Purpose: Resolves and invokes the `meshtools3d` binary; injects
-`DYLD_LIBRARY_PATH` / `LD_LIBRARY_PATH` for the bundled `lib/` directory.
+Import: `from pycemrg_meshing import MeshtoolsRunner`
+Purpose: Resolves and invokes `meshtools3d`, injecting the bundled `lib/` on
+`DYLD_LIBRARY_PATH` / `LD_LIBRARY_PATH`.
 
 ```python
-MeshtoolsRunner(
-    binary_path: str | Path | None = None,
-    *,
-    model_manager: ModelManager | None = None,
-    runner: CommandRunner | None = None,
-    logger: logging.Logger | None = None,
-)
+MeshtoolsRunner(binary_path: str | Path | None = None, *,
+                model_manager: ModelManager | None = None,
+                runner: CommandRunner | None = None,
+                logger: logging.Logger | None = None)
 
 .resolve_binary() -> Path
-
-.run(
-    par_path: str | Path,
-    *,
-    cwd: str | Path | None = None,
-    extra_args: Sequence[str] | None = None,
-) -> Path
+.run(job: MeshingJob, *, overrides: MeshingOverrides | None = None,
+     cwd: str | Path | None = None) -> MeshingResult
 ```
 
-Notes: `run` returns the resolved `[output] outdir` from the parameter file.
-If `outdir` is relative it is resolved against the parent of `par_path`. Binary
-discovery order: explicit `binary_path` → `ModelManager.get_model_path` against
-the bundled `models.yaml`; no `shutil.which` fallback, no env-var override.
+Notes: `job.parfile_path` must already exist — authoring is a separate step.
+The `.par` is passed via `-f`; overrides become native `-seg_dir` / `-seg_name`
+/ `-out_dir` / `-out_name` flags and do not modify the file. Discovery is
+exactly explicit `binary_path` → `ModelManager`; no env-var or `PATH` fallback.
 
 ---
 
 ### LaplaceRunner
-Import: `from pycemrg_meshing import LaplaceRunner`  
-Purpose: Identical interface to `MeshtoolsRunner` but targets the
-`laplace_solver` binary.
+Import: `from pycemrg_meshing import LaplaceRunner`
+Purpose: Same construction and discovery as `MeshtoolsRunner`, targeting
+`laplace_solver`.
 
 ```python
-LaplaceRunner(
-    binary_path: str | Path | None = None,
-    *,
-    model_manager: ModelManager | None = None,
-    runner: CommandRunner | None = None,
-    logger: logging.Logger | None = None,
-)
+LaplaceRunner(binary_path=None, *, model_manager=None, runner=None, logger=None)
 
-.run(par_path: str | Path, *, cwd: str | Path | None = None,
-     extra_args: Sequence[str] | None = None) -> Path
+.resolve_binary() -> Path
+.run(job: LaplaceSolveJob, *, options: LaplaceSolveOptions | None = None,
+     cwd: str | Path | None = None) -> LaplaceSolveResult
 ```
+
+Notes: mesh, output, and BC flags come from the job; `options` adds only
+behavioural toggles. A supplied `parfile_path` must exist or `FileNotFoundError`
+is raised before the binary runs.
 
 ---
 
@@ -158,23 +158,85 @@ LaplaceRunner(
 Entry point: `pycemrg_meshing.cli:main`
 
 ```
-pycemrg-meshing init-par [-o OUTPUT] [--set SECTION.KEY=VALUE ...]
-pycemrg-meshing run      PARFILE [--binary PATH] [--cwd DIR]
-pycemrg-meshing laplace  PARFILE [--binary PATH] [--cwd DIR]
+pycemrg-meshing [-v] init-par [-o OUTPUT] [--set SECTION.KEY=VALUE ...]
+pycemrg-meshing [-v] run PARFILE [--binary PATH] [--cwd DIR]
+                    [--seg-dir D] [--seg-name N] [--out-dir D] [--out-name N]
+pycemrg-meshing [-v] laplace --mesh-dir D --mesh-name N --out-dir D --out-name N
+                    [--zero-bc VTX ...] [--one-bc VTX ...] [-f PARFILE]
+                    [--binary PATH] [--cwd DIR] [--vtk] [--vtk-binary]
+                    [--potential] [--no-thickness] [--swap-regions]
+                    [--thickness-algo N] [--solver-verbose]
 ```
+
+Notes: `laplace` takes no positional argument; the four `--mesh-*` / `--out-*`
+options are all required. `--set` is repeatable and validated against the schema.
 
 ## Contracts and Data Structures
 
 ### MeshingJob (frozen dataclass)
 | Field | Type | Description |
 |---|---|---|
-| `segmentation_path` | `Path` | Absolute path to the `.inr` segmentation |
+| `segmentation_path` | `Path` | Path to the `.inr` segmentation |
 | `output_dir` | `Path` | Directory where outputs will be written |
 | `output_name` | `str` | Basename without extension (`[output] name`) |
 | `parfile_path` | `Path` | Path to the `.par` file to write/read |
 
+### LaplaceSolveJob (frozen dataclass)
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `mesh_dir` | `Path` | — | Directory holding the CARP mesh |
+| `mesh_name` | `str` | — | CARP mesh basename |
+| `output_dir` | `Path` | — | Output directory |
+| `output_name` | `str` | — | Output basename |
+| `zero_bc` | `tuple[Path, ...]` | `()` | `.vtx` node-sets held at 0.0 |
+| `one_bc` | `tuple[Path, ...]` | `()` | `.vtx` node-sets held at 1.0 |
+| `parfile_path` | `Path \| None` | `None` | Optional `-f` GetPot file |
+
+### MeshingOverrides (frozen dataclass)
+Run-time overrides for `meshtools3d` paths; `None` means "use the `.par` value".
+Values are stored verbatim, never expanded or resolved.
+
+| Field | Type | Default | Emitted flag |
+|---|---|---|---|
+| `seg_dir` | `str \| None` | `None` | `-seg_dir` |
+| `seg_name` | `str \| None` | `None` | `-seg_name` |
+| `out_dir` | `str \| None` | `None` | `-out_dir` |
+| `out_name` | `str \| None` | `None` | `-out_name` |
+| `thickness_algorithm` | `int \| None` | `None` | `--thickness-algorithm` |
+| `verbose` | `bool` | `False` | `--verbose` |
+
+`.as_cli_args() -> list[str]` renders only the fields that are set.
+
+### LaplaceSolveOptions (frozen dataclass)
+Behavioural toggles only — no paths. `.as_cli_args() -> list[str]`.
+
+| Field | Type | Default | Emitted flag |
+|---|---|---|---|
+| `no_thickness` | `bool` | `False` | `--no-thickness` |
+| `swap_regions` | `bool` | `False` | `--swap-regions` |
+| `thickness_algorithm` | `int \| None` | `None` | `--thickness-algorithm` |
+| `vtk` | `bool` | `False` | `--vtk` |
+| `vtk_binary` | `bool` | `False` | `--vtk-binary` |
+| `potential` | `bool` | `False` | `--potential` |
+| `verbose` | `bool` | `False` | `--verbose` |
+
+`thickness_algorithm`: 1 = Bishop, 2 = Corrado.
+
+### MeshingResult / LaplaceSolveResult (frozen dataclasses)
+| Field | Type | Description |
+|---|---|---|
+| `outdir` | `Path` | Effective output dir, resolved against the run's cwd |
+| `outputs` | `list[OutputFile]` | Files the run was expected to produce |
+| `stdout` | `str` | Captured standard output of the binary |
+
+### OutputFile (frozen dataclass)
+| Field | Type | Description |
+|---|---|---|
+| `path` | `Path` | Produced file |
+| `size` | `int` | On-disk size in bytes at collection time |
+
 ### DEFAULT_VALUES schema (ParamDict)
-Sections and their keys accepted by `MeshingParameters.set`/`get`:
+Core sections and keys, always written by `save`:
 
 | Section | Keys |
 |---|---|
@@ -184,37 +246,69 @@ Sections and their keys accepted by `MeshingParameters.set`/`get`:
 | `others` | `eval_thickness` |
 | `output` | `outdir`, `name`, `out_medit`, `out_carp`, `out_carp_binary`, `out_vtk`, `out_vtk_binary`, `out_potential` |
 
+### EXTENDED_DEFAULTS schema (ParamDict)
+Valid but not written until explicitly set:
+
+| Section | Keys |
+|---|---|
+| `meshing` | `readTheMesh`, `mesh_dir`, `mesh_name` |
+| `others` | `swapregions`, `thickalgo` |
+| `output` | `debug_output`, `debug_frequency` |
+
 All values are strings; the C++ side parses them.
 
 ### BinaryName (Literal)
-`"meshtools3d" | "laplace_solver"` — used by `tools.binaries` helpers to select
-the correct `models.yaml` entry name.
+`"meshtools3d" | "laplace_solver"` — selects the `models.yaml` entry name via
+`pycemrg_meshing.tools.binaries.model_name_for`.
+
+### MacOSGatekeeperError (RuntimeError)
+Raised by `resolve_binary()` on macOS whenever the `ModelManager` download path
+is taken. Exposes `.binary` and `.install_root`; the message contains the exact
+`codesign` commands to run.
 
 ## What the Consumer Must Provide
 
-- A `.inr` segmentation file (or a `converter` callable that produces one).
-- A `pycemrg.ModelManager` instance or a `binary_path` pointing to the binary,
-  unless the bundled `models.yaml` already registers a build for the running
-  platform.
-- A `pycemrg.system.CommandRunner` if custom logging or subprocess behaviour is
-  required (otherwise the default `CommandRunner` is used).
-- If using `from_segmentation` with a non-`.inr` input: a `converter` with
-  signature `(src: Path, dst: Path) -> Path`; this library never imports image
-  I/O libraries itself.
-- Output directory creation is handled by `MeshingParameters.save`
-  (`mkdir -p`); the `[output] outdir` directory itself is created by the
-  `meshtools3d` binary at runtime.
+- A `.inr` segmentation, or a `converter` callable `(src: Path, dst: Path) -> Path`
+  for `MeshingJob.from_segmentation`. This library never imports image I/O.
+- An existing `.par` file before calling `MeshtoolsRunner.run` — the runner does
+  not author one. Use `MeshingJob.write_parfile` or the `init-par` CLI first.
+- For `laplace_solver`: an existing CARP mesh (`.elem`/`.pts`/`.lon`) and any
+  `.vtx` boundary-condition node-sets.
+- On macOS: an ad-hoc-signed binary passed as `binary_path=` / `--binary`. The
+  automatic download path always fails there by design.
+- Optionally a `pycemrg.ModelManager` or `pycemrg.system.CommandRunner` for
+  custom manifests, logging, or subprocess behaviour; both are injectable and
+  default to the bundled manifest and a plain `CommandRunner`.
+- The working directory when relative paths matter — pass `cwd=` explicitly
+  rather than relying on the derivation described below.
 
 ## Known Constraints
 
-- Supported platforms for binary resolution via `ModelManager`: Linux x86_64
-  and macOS arm64. Any other platform raises `UnsupportedPlatformError` unless
-  `binary_path` is supplied explicitly.
-- `expected_outputs` does not enumerate binary CARP (`.elembc`), binary VTK, or
-  the Laplace potential field — those require the caller to inspect the
-  parameter file directly.
-- The runners call `CommandRunner.run(env=...)` which replaces the entire
-  process environment. The library starts from `os.environ.copy()` and prepends
-  the bundled `lib/` directory; other ambient env vars are preserved.
-- `MeshingParameters.load` validates against the schema on read. A `.par` file
-  with custom / vendor-extended sections will raise `KeyError`.
+- **macOS always raises `MacOSGatekeeperError`** on the `ModelManager` path.
+  Apple Silicon SIGKILLs the unsigned prebuilt arm64 binaries, so the library
+  refuses to invoke a freshly downloaded build. Sign once, then pass the path
+  explicitly. This is a deliberate stop, not a bug.
+- Binary discovery is exactly two paths: explicit `binary_path` → `ModelManager`.
+  There is no `MESHTOOLS3D_BIN` env var and no `shutil.which` fallback.
+- Platforms with a `models.yaml` entry are exactly `linux-x86_64` and
+  `macos-arm64`; anything else raises `UnsupportedPlatformError` unless
+  `binary_path` is supplied.
+- The working directory is derived, not fixed: explicit `cwd` wins; otherwise an
+  absolute primary input dir (`seg_dir` / `mesh_dir`) becomes the cwd; otherwise
+  the parfile's parent; otherwise the process cwd. Relative `[output] outdir` is
+  resolved against that choice.
+- `expected_outputs` is deliberately conservative and feeds
+  `CommandRunner(expected_outputs=...)`, which raises `FileNotFoundError`
+  post-run if any listed file is missing. Binary CARP/VTK are not enumerated
+  because the upstream filenames are undocumented; over-predicting would break
+  otherwise-valid runs.
+- `MeshingParameters.load` validates on read: a `.par` with vendor-extended or
+  custom sections raises `KeyError`.
+- Key case is significant. `rescaleFactor`, `dimKrilovSp`, and `readTheMesh` are
+  camelCase; `swapregions` and `thickalgo` are lowercase. Do not normalise.
+- `CommandRunner.run(env=...)` replaces the entire environment. The runners
+  start from `os.environ.copy()` and prepend the bundled `lib/`, so ambient
+  variables survive — but a caller passing its own `CommandRunner` must preserve
+  that behaviour.
+- `pycemrg` ships no `py.typed`, so strict type-checkers report the import as
+  untyped.
